@@ -37,11 +37,21 @@ app.use(cors());
 app.use(express.json({ limit: '20mb' }));
 
 // ───────────────────────────────────────────────────────────────────────
-//  Founder dashboard — static HTML served at /founder/dashboard
-//  Gated: the API it calls (/api/founder/pulse) requires FOUNDER_KEY.
-//  The HTML itself is not auth-protected (it's useless without the key).
+//  Founder dashboard — static HTML served at /founder/dashboard.html
+//  Explicit sendFile route guarantees it works regardless of how Railway
+//  resolves static middleware paths. The HTML is not auth-protected —
+//  it's useless without the FOUNDER_KEY the API requires.
 // ───────────────────────────────────────────────────────────────────────
-app.use('/founder', express.static(path.join(__dirname, 'public/founder')));
+const FOUNDER_DIR = path.join(__dirname, 'public', 'founder');
+app.use('/founder', express.static(FOUNDER_DIR));
+
+// Explicit fallback so /founder and /founder/dashboard both work
+app.get('/founder/dashboard', (req, res) => {
+  res.sendFile(path.join(FOUNDER_DIR, 'dashboard.html'));
+});
+app.get('/founder', (req, res) => {
+  res.sendFile(path.join(FOUNDER_DIR, 'dashboard.html'));
+});
 
 // ───────────────────────────────────────────────────────────────────────
 //  Mock market data (replace with real feeds later)
