@@ -1,0 +1,23 @@
+LodeRuntime™ and Lode Architecture™
+Copyright © 2025 Demiris Brown. All Rights Reserved.
+
+This software and associated documentation files (the "Software") are the
+proprietary and confidential information of Ladale Industries LLC (parent
+company of Simpleton Technologies). The Software is protected by United States
+and international copyright and trade secret laws.
+
+No part of the Software may be copied, reproduced, modified, published,
+uploaded, posted, transmitted, or distributed in any form or by any means
+without the prior written permission of Demiris Brown.
+
+The Software is provided "as is", without warranty of any kind, express or
+implied. In no event shall the copyright holder be liable for any claim,
+damages, or other liability arising from the use of the Software.
+
+For licensing inquiries, please contact:
+Ladale Industries LLC
+Attn: Founder
+Founder@simpletontechnologies.com
+
+LodeRuntime, Lode Architecture, and the Lode logo are trademarks of
+Ladale Industries LLC.
