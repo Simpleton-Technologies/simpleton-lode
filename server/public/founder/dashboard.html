@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simpleton Pulse</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@300;400&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: #0b0b12; color: #f4efe2;
+      font-family: 'Inter', -apple-system, sans-serif;
+      margin: 0; padding: 16px;
+    }
+    .pulse-ring {
+      width: 120px; height: 120px; border-radius: 60px;
+      margin: 20px auto;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 48px; font-weight: 300;
+      font-family: 'Playfair Display', serif;
+      transition: all 0.3s ease;
+    }
+    .pulse-healthy  { background: rgba(201,168,76,0.15); border: 2px solid #c9a84c; color: #c9a84c; }
+    .pulse-warning  { background: rgba(201,168,76,0.08); border: 2px solid #a8873a; color: #a8873a; }
+    .pulse-critical { background: rgba(220,38,38,0.08);  border: 2px solid #dc2626; color: #dc2626; }
+    .metric {
+      background: rgba(244,239,226,0.03);
+      border: 1px solid rgba(244,239,226,0.08);
+      padding: 16px; margin: 12px 0; border-radius: 4px;
+    }
+    .metric-label {
+      font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.2em; color: #9a937f;
+    }
+    .metric-value {
+      font-size: 24px; font-family: 'JetBrains Mono', monospace; margin-top: 4px;
+    }
+    .pain-item {
+      padding: 12px; border-left: 2px solid #dc2626;
+      background: rgba(220,38,38,0.05); margin: 8px 0; font-size: 13px;
+    }
+    .heal-item {
+      padding: 8px; border-left: 2px solid #10b981;
+      background: rgba(16,185,129,0.05); margin: 4px 0; font-size: 12px;
+    }
+    .empty-state { color: #6b6552; padding: 16px; text-align: center; font-size: 13px; }
+    .setup-panel {
+      background: rgba(201,168,76,0.05);
+      border: 1px solid rgba(201,168,76,0.2);
+      padding: 16px; margin: 20px 0; border-radius: 4px;
+    }
+    .setup-panel input {
+      width: 100%; padding: 12px; box-sizing: border-box;
+      background: #1a1a2a; border: 1px solid #2a2a3a;
+      color: #f4efe2; font-family: 'JetBrains Mono', monospace;
+      margin: 8px 0; border-radius: 2px;
+    }
+    .btn-primary {
+      width: 100%; padding: 12px; margin-top: 8px;
+      background: #c9a84c; border: none; color: #0b0b12;
+      font-family: 'Inter', sans-serif; font-size: 14px;
+      cursor: pointer; border-radius: 2px;
+    }
+    .btn-ghost {
+      background: transparent; border: 1px solid rgba(244,239,226,0.2);
+      color: #f4efe2; padding: 12px; width: 100%;
+      font-family: 'Inter', sans-serif; font-size: 14px;
+      cursor: pointer; margin-top: 20px; border-radius: 2px;
+    }
+    .status-badge {
+      display: inline-block; font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+      padding: 3px 8px; border-radius: 2px; margin-left: 8px;
+      vertical-align: middle;
+    }
+    .badge-healthy  { background: rgba(201,168,76,0.15); color: #c9a84c; }
+    .badge-warning  { background: rgba(201,168,76,0.08); color: #a8873a; }
+    .badge-critical { background: rgba(220,38,38,0.08);  color: #dc2626; }
+  </style>
+</head>
+<body>
+
+  <h1 style="font-family:'Playfair Display',serif; font-weight:400; margin:0 0 4px;">
+    Simpleton Pulse
+  </h1>
+  <div style="font-size:12px; color:#6b6552; margin-bottom:20px;">
+    Last update: <span id="timestamp">--</span>
+  </div>
+
+  <!-- First-time setup -->
+  <div id="setup-panel" class="setup-panel" style="display:none;">
+    <div class="metric-label">Founder Key Required</div>
+    <input type="password" id="founder-key-input" placeholder="Enter FOUNDER_KEY" />
+    <input type="url" id="api-url-input" placeholder="API URL (e.g. https://xxx.railway.app)" />
+    <button class="btn-primary" onclick="saveSetup()">Save & Connect</button>
+    <p style="font-size:11px; color:#6b6552; margin-top:8px;">
+      Stored in localStorage on this device only.
+    </p>
+  </div>
+
+  <div id="pulse" class="pulse-ring pulse-healthy">--</div>
+
+  <div class="metric">
+    <div class="metric-label">Active Pain Points</div>
+    <div class="metric-value" id="pain-count">--</div>
+  </div>
+
+  <div class="metric">
+    <div class="metric-label">Brain Activity</div>
+    <div class="metric-value" id="neuron-count">--</div>
+    <div style="font-size:12px; color:#9a937f; margin-top:4px;">
+      <span id="active-neurons">0</span> active
+    </div>
+  </div>
+
+  <div id="pain-list"></div>
+  <div id="heal-list"></div>
+
+  <button class="btn-ghost" onclick="fetchPulse()">⟳ Refresh</button>
+  <button class="btn-ghost" style="margin-top:8px; font-size:12px; color:#6b6552;"
+          onclick="clearSetup()">Clear saved key</button>
+
+  <script>
+    function getApiUrl() {
+      return localStorage.getItem('pulse_api_url') || window.location.origin;
+    }
+
+    function saveSetup() {
+      const key = document.getElementById('founder-key-input').value.trim();
+      const url = document.getElementById('api-url-input').value.trim();
+      if (!key) return;
+      localStorage.setItem('founder_key', key);
+      if (url) localStorage.setItem('pulse_api_url', url);
+      document.getElementById('setup-panel').style.display = 'none';
+      fetchPulse();
+    }
+
+    function clearSetup() {
+      localStorage.removeItem('founder_key');
+      localStorage.removeItem('pulse_api_url');
+      document.getElementById('setup-panel').style.display = 'block';
+    }
+
+    async function fetchPulse() {
+      const founderKey = localStorage.getItem('founder_key');
+      if (!founderKey) {
+        document.getElementById('setup-panel').style.display = 'block';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${getApiUrl()}/api/founder/pulse`, {
+          headers: { 'Authorization': `Bearer ${founderKey}` }
+        });
+
+        if (res.status === 401) {
+          localStorage.removeItem('founder_key');
+          document.getElementById('setup-panel').style.display = 'block';
+          return;
+        }
+
+        const d = await res.json();
+
+        // Pulse ring
+        const pulseEl = document.getElementById('pulse');
+        pulseEl.textContent = d.pulse;
+        pulseEl.className   = 'pulse-ring pulse-' + d.status;
+
+        // Metrics
+        document.getElementById('timestamp').textContent    = new Date(d.timestamp).toLocaleTimeString();
+        document.getElementById('pain-count').textContent   = d.activePain;
+        document.getElementById('neuron-count').textContent = d.brainActivity.neuronCount;
+        document.getElementById('active-neurons').textContent = d.brainActivity.activeNeurons;
+
+        // Pain points — show message not UUID
+        const painList = document.getElementById('pain-list');
+        painList.innerHTML = d.painDetails.length > 0
+          ? d.painDetails.map(p => {
+              const msg = p.violations[0]?.message || p.violations[0]?.type || 'Unknown';
+              return `<div class="pain-item">
+                <strong>${msg}</strong><br>
+                <span style="color:#9a937f; font-size:11px;">${new Date(p.timestamp).toLocaleTimeString()}</span>
+              </div>`;
+            }).join('')
+          : '<div class="empty-state">No active pain</div>';
+
+        // Recent heals — d.recentHeals is an array
+        const healList = document.getElementById('heal-list');
+        healList.innerHTML = (d.recentHeals && d.recentHeals.length > 0)
+          ? d.recentHeals.map(h => `<div class="heal-item">
+              ✓ Healed: ${h.method}<br>
+              <span style="color:#9a937f; font-size:11px;">${new Date(h.timestamp).toLocaleTimeString()}</span>
+            </div>`).join('')
+          : '<div class="empty-state">No recent heals</div>';
+
+      } catch (e) {
+        console.error('Pulse fetch failed:', e);
+        document.getElementById('pulse').textContent  = 'ERR';
+        document.getElementById('pulse').className   = 'pulse-ring pulse-critical';
+      }
+    }
+
+    // Boot
+    if (localStorage.getItem('founder_key')) {
+      document.getElementById('setup-panel').style.display = 'none';
+      fetchPulse();
+    } else {
+      document.getElementById('setup-panel').style.display = 'block';
+    }
+
+    setInterval(fetchPulse, 30000);
+  </script>
+</body>
+</html>
