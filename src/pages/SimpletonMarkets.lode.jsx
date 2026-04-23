@@ -22,6 +22,7 @@ import { useLode, useLodeValue, useLodeBrainActivation } from '@/lib/lode-contex
 import { WhyButton } from '@/components/CausalTraceViewer';
 import { TopNav } from '@/components/layout/TopNav';
 import { Footer } from '@/components/layout/Footer';
+import MarketSignalsPanel from '@/components/MarketSignalsPanel';
 
 const T = {
   bg:        '#0b0b12',
@@ -190,6 +191,9 @@ export default function SimpletonMarkets() {
             ))}
           </tbody>
         </table>
+
+        {/* Derived market signals — MA, volatility, trend */}
+        <MarketSignalsPanel />
 
         {/* Footnote + nav back */}
         <div style={{

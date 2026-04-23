@@ -18,6 +18,7 @@
  */
 
 import { AstNode } from './runtime.js';
+import { spawnMarketSignalsForSymbolSync } from './market-signals.js';
 
 export function buildSiteAST(runtime) {
   // --------------------------------------------------------------------
@@ -140,6 +141,23 @@ export function buildSiteAST(runtime) {
   runtime.env.bindings.set('rolexDB',      rolexDatabase.id);
 
   // --------------------------------------------------------------------
+  // Derived market signals (per-symbol subtrees)
+  //
+  // Each symbol gets: price-history (capped tick log) → ma:fast, ma:slow,
+  // volatility. The trend-signal derives from the two MAs. market-data-sync
+  // calls appendTick on every successful fetch; _reEvaluateSet then cascades
+  // the new price through all derived nodes.
+  //
+  // Bindings registered under `${symbol}.priceHistory`, `${symbol}.maFast`,
+  // `${symbol}.maSlow`, `${symbol}.volatility`, `${symbol}.trend` so UI
+  // hooks can look them up by name without holding ids.
+  // --------------------------------------------------------------------
+  const goldSignals      = spawnMarketSignalsForSymbolSync(runtime, { symbol: 'XAUUSD' });
+  const silverSignals    = spawnMarketSignalsForSymbolSync(runtime, { symbol: 'XAGUSD' });
+  const platinumSignals  = spawnMarketSignalsForSymbolSync(runtime, { symbol: 'XPTUSD' });
+  const palladiumSignals = spawnMarketSignalsForSymbolSync(runtime, { symbol: 'XPDUSD' });
+
+  // --------------------------------------------------------------------
   // Add all to AST store
   // --------------------------------------------------------------------
   const allNodes = [
@@ -156,6 +174,13 @@ export function buildSiteAST(runtime) {
     // Market data
     goldPrice, silverPrice, platinumPrice, palladiumPrice,
     diamondIndex, rolexDatabase, coinDatabase,
+    // Derived market signals (price-history / MA / volatility / trend)
+    signals: {
+      XAUUSD: goldSignals,
+      XAGUSD: silverSignals,
+      XPTUSD: platinumSignals,
+      XPDUSD: palladiumSignals,
+    },
     // Routing
     router, currentRoute,
     // Preferences

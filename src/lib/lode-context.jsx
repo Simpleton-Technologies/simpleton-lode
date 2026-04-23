@@ -62,6 +62,7 @@ import { LodeRuntime } from '@/lode/runtime';
 import { LodeBrain } from '@/lode/brain';
 import { buildSiteAST } from '@/lode/site-ast';
 import { MarketDataSync } from '@/lode/market-data-sync';
+import { registerMarketSignalTypes } from '@/lode/market-signals';
 
 // Simpleton-lode's domain-specific node types. Registered against the
 // kernel at runtime-construction time. The kernel (@loderuntime/core) is
@@ -104,6 +105,10 @@ export function LodeProvider({ children }) {
     for (const { type, isRoot } of SIMPLETON_NODE_TYPES) {
       r.registerNodeType(type, { evaluator: opaqueValueEvaluator, isRoot });
     }
+    // Derived market-signal types (price-history, moving-average, volatility,
+    // trend-signal). Each has its own evaluator — not opaque — so values
+    // cascade through the dep graph when ticks land on price-history.
+    registerMarketSignalTypes(r);
     return r;
   });
   const [siteAST] = useState(() => buildSiteAST(runtime));

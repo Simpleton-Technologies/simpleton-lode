@@ -40,6 +40,9 @@
  * StrictMode hygiene: start() returns a stop function that clears the
  * two intervals *and* every pending retry timer.
  */
+
+import { appendTick } from './market-signals.js';
+
 export class MarketDataSync {
   static start(runtime, siteAST) {
     const freshnessMap = {
@@ -76,6 +79,17 @@ export class MarketDataSync {
             retryCount: 0,
           },
         }, 'market-feed');
+
+        // Append a tick to the symbol's price-history so the derived
+        // MA/volatility/trend signals recompute. No-op if signals aren't
+        // wired (keeps this file safe if market-signals ever gets removed).
+        const signals = siteAST.signals?.[symbol];
+        if (signals?.priceHistoryId) {
+          await appendTick(runtime, signals.priceHistoryId, {
+            value: data.price,
+            ts: Date.now(),
+          }, 'market-feed');
+        }
 
         runtime.brain.stimulate(siteAST.marketUpdateNeuron, 30);
         const freshnessNeuron = freshnessMap[symbol];
