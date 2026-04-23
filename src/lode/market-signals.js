@@ -70,10 +70,15 @@ export function movingAverageEvaluator(node, runtime) {
 }
 
 export function volatilityEvaluator(node, runtime) {
+  // Returns null when we can't compute a real number (no history, too few
+  // ticks, or all returns invalid). The UI's formatPct treats null as "—"
+  // — same convention the MA and trend columns use. Returning 0 instead
+  // would be wrong because 0 volatility is a valid (flat-price) result and
+  // not distinguishable from "waiting for data" downstream.
   const historyId = node.children[0];
-  if (!historyId) return 0;
+  if (!historyId) return null;
   const ticks = runtime.evaluate(historyId);
-  if (!Array.isArray(ticks) || ticks.length < 2) return 0;
+  if (!Array.isArray(ticks) || ticks.length < 2) return null;
   const window = Number.isInteger(node.props.window) ? node.props.window : VOLATILITY_WINDOW;
   const slice = ticks.slice(-(window + 1));
   const returns = [];
@@ -84,7 +89,7 @@ export function volatilityEvaluator(node, runtime) {
       returns.push((curr - prev) / prev);
     }
   }
-  if (returns.length === 0) return 0;
+  if (returns.length === 0) return null;
   const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
   const variance = returns.reduce((acc, r) => acc + (r - mean) ** 2, 0) / returns.length;
   return Math.sqrt(variance);
