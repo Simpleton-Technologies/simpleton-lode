@@ -267,7 +267,7 @@ export default function Home() {
   // useLodeNodeId resolves a siteAST key to its node UUID;
   // useLodeValue subscribes via useSyncExternalStore and returns the
   // current evaluated value, auto-updating when the node changes.
-  // No manual forceUpdate scaffolding, no runtime.values.get() calls.
+  // No manual forceUpdate scaffolding, no runtime.valueStore.get() calls.
   const goldId      = useLodeNodeId('goldPrice');
   const silverId    = useLodeNodeId('silverPrice');
   const platinumId  = useLodeNodeId('platinumPrice');

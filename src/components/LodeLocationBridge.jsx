@@ -54,7 +54,7 @@ export function LodeLocationBridge() {
       let pageName = 'Home';
       if (router) {
         const match = router.children
-          .map((id) => runtime.ast.get(id))
+          .map((id) => runtime.astStore.get(id))
           .filter(Boolean)
           .find((r) => r.props.path === location);
         if (match) pageName = match.props.page;

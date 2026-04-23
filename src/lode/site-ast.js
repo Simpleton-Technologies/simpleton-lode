@@ -102,7 +102,7 @@ export function buildSiteAST(runtime) {
   const routeNodes = routeDefinitions.map(def => new AstNode('route', def));
   const router = new AstNode('router', {}, routeNodes.map(r => r.id));
   const currentRoute = new AstNode('current-route', { path: '/', page: 'Home' });
-  runtime.define('currentRoute', currentRoute.id);
+  runtime.env.bindings.set('currentRoute', currentRoute.id);
 
   // --------------------------------------------------------------------
   // User Preferences
@@ -110,9 +110,9 @@ export function buildSiteAST(runtime) {
   const themePref        = new AstNode('preference', { key: 'theme',        value: 'dark'  }, [], { ownerId: 'user' });
   const highContrastPref = new AstNode('preference', { key: 'highContrast', value: false });
   const reduceMotionPref = new AstNode('preference', { key: 'reduceMotion', value: false });
-  runtime.define('theme',        themePref.id);
-  runtime.define('highContrast', highContrastPref.id);
-  runtime.define('reduceMotion', reduceMotionPref.id);
+  runtime.env.bindings.set('theme',        themePref.id);
+  runtime.env.bindings.set('highContrast', highContrastPref.id);
+  runtime.env.bindings.set('reduceMotion', reduceMotionPref.id);
 
   // --------------------------------------------------------------------
   // Global Awareness Neurons
@@ -132,12 +132,12 @@ export function buildSiteAST(runtime) {
   // React components look up nodes by human-readable names via the
   // useLodeNodeId hook.
   // --------------------------------------------------------------------
-  runtime.define('XAUUSD',       goldPrice.id);
-  runtime.define('XAGUSD',       silverPrice.id);
-  runtime.define('XPTUSD',       platinumPrice.id);
-  runtime.define('XPDUSD',       palladiumPrice.id);
-  runtime.define('diamondIndex', diamondIndex.id);
-  runtime.define('rolexDB',      rolexDatabase.id);
+  runtime.env.bindings.set('XAUUSD',       goldPrice.id);
+  runtime.env.bindings.set('XAGUSD',       silverPrice.id);
+  runtime.env.bindings.set('XPTUSD',       platinumPrice.id);
+  runtime.env.bindings.set('XPDUSD',       palladiumPrice.id);
+  runtime.env.bindings.set('diamondIndex', diamondIndex.id);
+  runtime.env.bindings.set('rolexDB',      rolexDatabase.id);
 
   // --------------------------------------------------------------------
   // Add all to AST store
@@ -149,7 +149,7 @@ export function buildSiteAST(runtime) {
     themePref, highContrastPref, reduceMotionPref,
     ...routeNodes,
   ];
-  allNodes.forEach(node => runtime.ast.set(node.id, node));
+  allNodes.forEach(node => runtime.astStore.set(node.id, node));
   routeNodes.forEach(route => runtime.depGraph.setParent(route.id, router.id));
 
   return {

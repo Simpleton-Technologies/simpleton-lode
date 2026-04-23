@@ -105,8 +105,8 @@ function CausalTraceViewer({ nodeId, onClose }) {
   }, [onClose]);
 
   // Gather the node's metadata and its trace chain.
-  const node = runtime.ast.get(nodeId);
-  const entries = runtime.trace.entries;
+  const node = runtime.astStore.get(nodeId);
+  const entries = runtime.causalTrace.entries;
 
   // Find the most recent evaluation for this node; the chain rolls
   // backward from there following inputKeys.
@@ -114,7 +114,7 @@ function CausalTraceViewer({ nodeId, onClose }) {
     for (let i = entries.length - 1; i >= 0; i--) {
       const e = entries[i];
       if (e.type === 'evaluation' && e.exprId === nodeId) {
-        return runtime.trace.why(e.valueKey) || [];
+        return runtime.causalTrace.why(e.valueKey) || [];
       }
     }
     return [];
@@ -131,7 +131,7 @@ function CausalTraceViewer({ nodeId, onClose }) {
       // Binding-name mutations land on the binding target, not the UUID.
       // Check if the binding resolves to this node.
       const bindingName = p.payload?.bindingName;
-      if (bindingName && runtime.env.get(bindingName) === nodeId) return true;
+      if (bindingName && runtime.env.lookup(bindingName) === nodeId) return true;
       return false;
     }).slice(-20).reverse(); // most recent first, cap at 20
   }, [entries.length, nodeId, runtime]);
@@ -256,7 +256,7 @@ function CausalTraceViewer({ nodeId, onClose }) {
             borderTop: `1px solid ${T.hairlineSoft}`,
             fontFamily: T.mono, fontSize: 10, color: T.inkFaint, letterSpacing: '0.08em',
           }}>
-            This panel is powered by <span style={{ color: T.blue }}>runtime.trace.why(nodeId, value)</span> —
+            This panel is powered by <span style={{ color: T.blue }}>runtime.why(nodeId, value)</span> —
             a single call returns the full lineage. No logging was added. This IS the data structure.
           </div>
         </div>

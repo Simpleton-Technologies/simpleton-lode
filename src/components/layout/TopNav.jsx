@@ -47,7 +47,7 @@ const T = {
  * source, so credibility is demonstrated, not announced.
  */
 export function TopNav() {
-  // Lode hooks only — no raw runtime.values.get() reads.
+  // Lode hooks only — no raw runtime.valueStore.get() reads.
   const { siteAST } = useLode();
 
   const goldId      = useLodeNodeId('goldPrice');

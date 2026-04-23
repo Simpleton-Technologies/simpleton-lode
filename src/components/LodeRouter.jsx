@@ -30,8 +30,8 @@ export function LodeRouter({ routerNodeId, currentRouteNodeId, componentMap }) {
     return unsubscribe;
   }, [runtime]);
 
-  const currentRoute = runtime.ast.get(currentRouteNodeId);
-  const currentValue = runtime.values.get(currentRouteNodeId) || currentRoute?.props;
+  const currentRoute = runtime.astStore.get(currentRouteNodeId);
+  const currentValue = runtime.valueStore.get(currentRouteNodeId) || currentRoute?.props;
   const pageName = currentValue?.page;
 
   const PageComponent = componentMap[pageName]
@@ -39,12 +39,12 @@ export function LodeRouter({ routerNodeId, currentRouteNodeId, componentMap }) {
 
   // Expose navigation function globally (for links)
   window.navigate = (path) => {
-    const router = runtime.ast.get(routerNodeId);
+    const router = runtime.astStore.get(routerNodeId);
     const route = router.children
-      .map(id => runtime.ast.get(id))
+      .map(id => runtime.astStore.get(id))
       .find(r => r.props.path === path);
     if (route) {
-      runtime.propose('set', currentRouteNodeId, {
+      runtime.proposeMutation('set', currentRouteNodeId, {
         bindingName: 'currentRoute',
         newValue: { path, page: route.props.page }
       }, 'router');

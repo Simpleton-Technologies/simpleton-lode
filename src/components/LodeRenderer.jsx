@@ -29,7 +29,7 @@ export function LodeRenderer({ nodeId, componentMap, children }) {
     return unsubscribe;
   }, [runtime]);
 
-  const node = runtime.ast.get(nodeId);
+  const node = runtime.astStore.get(nodeId);
   if (!node) return null;
 
   const Component = componentMap[node.type];

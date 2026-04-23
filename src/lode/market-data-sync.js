@@ -67,7 +67,7 @@ export class MarketDataSync {
         // newValue as object → AstNode.update spreads it into props, so
         // `stale`/`lastSuccess`/`retryCount` land as sibling props next to
         // `value`. evaluate() still returns node.props.value for readers.
-        await runtime.propose('set', nodeId, {
+        await runtime.proposeMutation('set', nodeId, {
           bindingName: symbol,
           newValue: {
             value: data.price,
@@ -83,14 +83,14 @@ export class MarketDataSync {
 
         inFlight.delete(symbol);
       } catch (err) {
-        const node = runtime.ast.get(nodeId);
+        const node = runtime.astStore.get(nodeId);
         const retryCount = (node?.props?.retryCount || 0) + 1;
 
         // Mark stale but keep last value — no `value` field in the update
         // means the spread-merge in node.update() preserves the previous
         // price. Freshness neuron is deliberately NOT stimulated, so its
         // LIF potential continues decaying and the UI dot dims on its own.
-        await runtime.propose('set', nodeId, {
+        await runtime.proposeMutation('set', nodeId, {
           bindingName: symbol,
           newValue: {
             stale: true,
@@ -118,7 +118,7 @@ export class MarketDataSync {
         const res = await fetch('/api/diamond-index');
         if (!res.ok) return;
         const data = await res.json();
-        await runtime.propose('set', siteAST.diamondIndex.id, {
+        await runtime.proposeMutation('set', siteAST.diamondIndex.id, {
           bindingName: 'diamondIndex',
           newValue: data.value,
         }, 'market-feed');
@@ -130,7 +130,7 @@ export class MarketDataSync {
         const res = await fetch('/api/rolex/market');
         if (!res.ok) return;
         const data = await res.json();
-        await runtime.propose('set', siteAST.rolexDatabase.id, {
+        await runtime.proposeMutation('set', siteAST.rolexDatabase.id, {
           bindingName: 'rolexDB',
           newValue: data,
         }, 'market-feed');

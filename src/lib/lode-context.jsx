@@ -103,7 +103,7 @@ export function LodeProvider({ children }) {
 
   // Debug surface. `window.__lode` exposes both the runtime and the
   // siteAST for use in the browser console:
-  //   window.__lode.runtime.trace.why(window.__lode.ast.goldPrice.id, 2650)
+  //   window.__lode.runtime.why(window.__lode.ast.goldPrice.id, 2650)
   // Kept off the context to avoid coupling it into production component code.
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -162,7 +162,7 @@ export function useLodeValue(nodeId) {
 
   const getSnapshot = useCallback(() => {
     if (!nodeId) return undefined;
-    if (!runtime.ast.has(nodeId)) return undefined;
+    if (!runtime.astStore.has(nodeId)) return undefined;
     return runtime.evaluate(nodeId);
   }, [runtime, nodeId]);
 
