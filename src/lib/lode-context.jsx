@@ -218,16 +218,34 @@ export function useLodeNodeId(name) {
 // ───────────────────────────────────────────────────────────────────────
 //  useLodeMutation()
 //
-//  Returns the runtime.propose function bound to the runtime instance.
-//  Memoized so the reference is stable across re-renders — safe to use
-//  as a useEffect dependency.
+//  Returns an ergonomic wrapper around runtime.proposeMutation. Memoized
+//  so the reference is stable across re-renders — safe to use as a
+//  useEffect dependency.
 //
 //    const propose = useLodeMutation();
 //    propose('set', 'XAUUSD', { newValue: 2651.00 }, 'user-override');
+//
+//  The wrapper accepts either a binding NAME or an actual node id as the
+//  second argument. When a name is passed, it's resolved via env.lookup
+//  and bindingName is injected into the payload so core's handleSet can
+//  find the binding. Node-id arguments pass through unchanged.
 // ───────────────────────────────────────────────────────────────────────
 export function useLodeMutation() {
   const { runtime } = useLode();
-  return useMemo(() => runtime.propose.bind(runtime), [runtime]);
+  return useMemo(() => {
+    return (type, nameOrId, payload, proposerId) => {
+      let targetId = nameOrId;
+      let adjustedPayload = payload;
+      if (typeof nameOrId === 'string' && !runtime.astStore.has(nameOrId)) {
+        const resolvedId = runtime.env.lookup(nameOrId);
+        if (resolvedId) {
+          targetId = resolvedId;
+          adjustedPayload = { bindingName: nameOrId, ...payload };
+        }
+      }
+      return runtime.proposeMutation(type, targetId, adjustedPayload, proposerId);
+    };
+  }, [runtime]);
 }
 
 // ───────────────────────────────────────────────────────────────────────
