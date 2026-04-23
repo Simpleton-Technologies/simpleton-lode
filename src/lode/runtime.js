@@ -17,330 +17,42 @@
  * Ladale Industries LLC.
  */
 
-// ----------------------------------------------------------------------
-// AST Node with Content-Addressed Identity
-// ----------------------------------------------------------------------
-export class AstNode {
-  constructor(type, props = {}, children = [], metadata = {}) {
-    this.type = type;
-    this.props = { ...props };
-    this.children = [...children];
-    this.metadata = {
-      ownerId: metadata.ownerId || 'system',
-      inferredType: metadata.inferredType || null,
-      annotations: metadata.annotations || []
-    };
-    this.id = crypto.randomUUID();
-    this.version = 0;
-  }
+// Step 6 swap (2026-04-22): this file is now a thin barrel that imports
+// the runtime from the unified @loderuntime/core package. Previously it
+// contained a 464-line fork of the runtime; that fork has been replaced
+// in favor of the single canonical implementation at
+//   /Users/mr.dee/Desktop/LodeRuntime/packages/core/runtime.js
+// linked as a file: dependency in package.json.
+//
+// The core class is called `LivingRuntime`. This module re-exports it as
+// `LodeRuntime` so every existing consumer keeps resolving. LodeBrain is
+// also re-exported from ./brain.js so consumers who import brain from
+// here continue to work; the canonical location for brain is ./brain.js.
+//
+// Design choices confirmed in STEP_5_PREFLIGHT and STEP_2/STEP_3 reports:
+//  - content-hash IDs (core's primary identity)
+//  - trackingId (core step 3) for stable React keys
+//  - 6 custom node types (market-data, diamond-index, rolex-database,
+//    coin-database, preference, current-route) — registered by the
+//    LodeProvider at runtime-construction time, not baked into the kernel.
 
-  update(newProps, newChildren) {
-    const newNode = new AstNode(
-      this.type,
-      { ...this.props, ...newProps },
-      newChildren ?? this.children,
-      this.metadata
-    );
-    newNode.id = this.id;
-    newNode.version = this.version + 1;
-    return newNode;
-  }
-}
+export {
+  LivingRuntime as LodeRuntime,
+  AstNode,
+  DependencyGraph,
+  Environment,
+  PolicyEngine,
+  ExecutionContext,
+  CausalTrace,
+  SelfModificationExecutor,
+  EffectScheduler,
+  deepEqual,
+  typeSafetyRule,
+  ownershipRule,
+  scopeRule,
+  noExternalDependentsRule,
+} from '@loderuntime/core';
 
-// ----------------------------------------------------------------------
-// Dependency Graph
-// ----------------------------------------------------------------------
-export class DependencyGraph {
-  constructor() {
-    this.dependents = new Map();
-    this.dependencies = new Map();
-    this.parentMap = new Map();
-  }
-
-  addDependency(dependentId, dependencyId) {
-    if (!this.dependents.has(dependencyId)) this.dependents.set(dependencyId, new Set());
-    this.dependents.get(dependencyId).add(dependentId);
-    if (!this.dependencies.has(dependentId)) this.dependencies.set(dependentId, new Set());
-    this.dependencies.get(dependentId).add(dependencyId);
-  }
-
-  setParent(childId, parentId) { this.parentMap.set(childId, parentId); }
-  getParent(childId) { return this.parentMap.get(childId); }
-
-  removeNode(exprId) {
-    if (this.dependencies.has(exprId)) {
-      for (const dep of this.dependencies.get(exprId)) this.dependents.get(dep)?.delete(exprId);
-      this.dependencies.delete(exprId);
-    }
-    if (this.dependents.has(exprId)) {
-      for (const dep of this.dependents.get(exprId)) this.dependencies.get(dep)?.delete(exprId);
-      this.dependents.delete(exprId);
-    }
-    this.parentMap.delete(exprId);
-  }
-
-  getTransitiveDependents(exprId, visited = new Set()) {
-    if (visited.has(exprId)) return [];
-    visited.add(exprId);
-    const direct = this.dependents.get(exprId) || new Set();
-    let all = [...direct];
-    for (const dep of direct) all = all.concat(this.getTransitiveDependents(dep, visited));
-    return all;
-  }
-
-  topologicalSort(exprIds) {
-    const subgraph = new Map();
-    const inDegree = new Map();
-    for (const id of exprIds) { subgraph.set(id, new Set()); inDegree.set(id, 0); }
-    for (const id of exprIds) {
-      const deps = this.dependencies.get(id) || new Set();
-      for (const dep of deps) {
-        if (subgraph.has(dep)) {
-          subgraph.get(id).add(dep);
-          inDegree.set(id, inDegree.get(id) + 1);
-        }
-      }
-    }
-    const queue = [];
-    for (const [id, deg] of inDegree) if (deg === 0) queue.push(id);
-    const sorted = [];
-    while (queue.length) {
-      const cur = queue.shift();
-      sorted.push(cur);
-      for (const [id, deps] of subgraph) {
-        if (deps.has(cur)) {
-          deps.delete(cur);
-          inDegree.set(id, inDegree.get(id) - 1);
-          if (inDegree.get(id) === 0) queue.push(id);
-        }
-      }
-    }
-    for (const deps of subgraph.values()) if (deps.size > 0) throw new Error('Cycle detected');
-    return sorted;
-  }
-}
-
-// ----------------------------------------------------------------------
-// Causal Trace
-// ----------------------------------------------------------------------
-export class CausalTrace {
-  constructor() {
-    this.entries = [];
-    this.valueKeyToEntryIdx = new Map();
-    this.nextSeq = 0;
-  }
-
-  makeValueKey(exprId, version) { return `${exprId}@v${version}#${this.nextSeq++}`; }
-
-  recordEvaluation(exprId, version, value, inputKeys = []) {
-    const valueKey = this.makeValueKey(exprId, version);
-    const entry = { type: 'evaluation', exprId, version, value, valueKey, inputKeys, timestamp: Date.now() };
-    const idx = this.entries.length;
-    this.entries.push(entry);
-    this.valueKeyToEntryIdx.set(valueKey, idx);
-    return valueKey;
-  }
-
-  recordMutation(proposal) {
-    this.entries.push({ type: 'mutation', proposal, timestamp: Date.now() });
-  }
-
-  why(valueKey) {
-    const idx = this.valueKeyToEntryIdx.get(valueKey);
-    if (idx === undefined) return null;
-    const chain = [];
-    this._buildChain(idx, chain, new Set());
-    return chain;
-  }
-
-  _buildChain(idx, chain, visited) {
-    if (visited.has(idx)) return;
-    visited.add(idx);
-    const entry = this.entries[idx];
-    chain.push(entry);
-    if (entry.type === 'evaluation' && entry.inputKeys) {
-      for (const inputKey of entry.inputKeys) {
-        const inputIdx = this.valueKeyToEntryIdx.get(inputKey);
-        if (inputIdx !== undefined) this._buildChain(inputIdx, chain, visited);
-      }
-    }
-  }
-
-  whyExprValue(exprId, value) {
-    for (let i = this.entries.length - 1; i >= 0; i--) {
-      const e = this.entries[i];
-      if (e.type === 'evaluation' && e.exprId === exprId && e.value === value) return this.why(e.valueKey);
-    }
-    return null;
-  }
-}
-
-// ----------------------------------------------------------------------
-// Policy Engine
-// ----------------------------------------------------------------------
-export class PolicyEngine {
-  constructor(rules = []) { this.rules = rules; this.auditLog = []; }
-
-  evaluate(proposal, context) {
-    for (const rule of this.rules) {
-      const result = rule(proposal, context);
-      if (!result.allowed) {
-        this.auditLog.push({ proposal, decision: result, time: new Date().toISOString() });
-        return result;
-      }
-    }
-    const decision = { allowed: true };
-    this.auditLog.push({ proposal, decision, time: new Date().toISOString() });
-    return decision;
-  }
-}
-
-export const typeSafetyRule = (proposal, context) => {
-  const expr = context.ast.get(proposal.targetId);
-  if (!expr) return { allowed: true };
-  if (proposal.type === 'set') {
-    const newType = typeof proposal.payload.newValue;
-    const expected = expr.metadata.inferredType;
-    if (expected && expected !== newType) {
-      return { allowed: false, reason: `Type mismatch: expected ${expected}, got ${newType}` };
-    }
-  }
-  return { allowed: true };
-};
-
-export const ownershipRule = (proposal, context) => {
-  const owner = context.ast.get(proposal.targetId)?.metadata.ownerId;
-  if (owner && owner !== proposal.proposerId && owner !== 'system') {
-    return { allowed: false, reason: 'Ownership violation' };
-  }
-  return { allowed: true };
-};
-
-// ----------------------------------------------------------------------
-// LodeBrain lives in ./brain.js (extracted 2026-04-22, step 5). Imported
-// here because LodeRuntime's constructor instantiates it. Also re-exported
-// so the existing barrel export from './index.js' and any consumer that
-// `import { LodeBrain } from '@/lode/runtime'` keeps resolving until
-// step 6 swaps this file for @loderuntime/core entirely.
-// ----------------------------------------------------------------------
-import { LodeBrain } from './brain.js';
+// LodeBrain stays with simpleton-lode as a domain module (step 5).
+// Re-exported here for legacy-path consumers; canonical path is ./brain.js.
 export { LodeBrain, NEURON_PARAMS, STDP_PARAMS } from './brain.js';
-
-// ----------------------------------------------------------------------
-// LodeRuntime
-// ----------------------------------------------------------------------
-export class LodeRuntime {
-  constructor() {
-    this.ast = new Map();
-    this.values = new Map();
-    this.env = new Map();
-    this.depGraph = new DependencyGraph();
-    this.policy = new PolicyEngine([typeSafetyRule, ownershipRule]);
-    this.trace = new CausalTrace();
-    this.brain = new LodeBrain();
-    this.subscribers = new Set();
-    this._evalCache = new Map();
-  }
-
-  _invalidateEvalCache(id) {
-    for (const key of this._evalCache.keys()) if (key.startsWith(id + '@')) this._evalCache.delete(key);
-  }
-
-  evaluate(id) {
-    const node = this.ast.get(id);
-    if (!node) throw new Error(`Node ${id} not found`);
-    const cacheKey = `${id}@v${node.version}`;
-    if (this._evalCache.has(cacheKey)) return this._evalCache.get(cacheKey);
-
-    const version = node.version;
-    const inputKeys = this._collectInputKeys(id);
-    let value;
-
-    switch (node.type) {
-      case 'literal': value = node.props.value; break;
-      case 'identifier': value = this.values.get(this.env.get(node.props.name)); break;
-      case 'market-data': case 'diamond-index': case 'rolex-database': case 'coin-database':
-      case 'preference': case 'current-route':
-        value = node.props.value ?? node.props; break;
-      default: value = node.props;
-    }
-
-    this._evalCache.set(cacheKey, value);
-    this.trace.recordEvaluation(id, version, value, inputKeys);
-    return value;
-  }
-
-  _collectInputKeys(id) {
-    const node = this.ast.get(id);
-    if (!node) return [];
-    const keys = [];
-    for (const childId of node.children) {
-      for (let i = this.trace.entries.length - 1; i >= 0; i--) {
-        const e = this.trace.entries[i];
-        if (e.type === 'evaluation' && e.exprId === childId) { keys.push(e.valueKey); break; }
-      }
-    }
-    return keys;
-  }
-
-  reEvaluateAll() {
-    const defNodes = [...this.ast.values()].filter(n =>
-      n.type === 'defvar' || n.type === 'market-data' || n.type === 'preference' ||
-      n.type === 'diamond-index' || n.type === 'rolex-database' || n.type === 'current-route'
-    );
-    for (const node of defNodes) { this.values.set(node.id, this.evaluate(node.id)); }
-  }
-
-  async propose(type, targetId, payload, proposer = 'system') {
-    const proposal = { type, targetId, payload, proposer };
-    const context = {
-      ast: this.ast, env: this.env, depGraph: this.depGraph, valueStore: this.values,
-      getOwner: (id) => this.ast.get(id)?.metadata.ownerId || 'system'
-    };
-    const decision = this.policy.evaluate(proposal, context);
-    if (!decision.allowed) return { success: false, reason: decision.reason };
-
-    if (type === 'set') {
-      const bindingName = payload.bindingName;
-      const bindingId = this.env.get(bindingName) || targetId;
-      const node = this.ast.get(bindingId);
-      if (!node) return { success: false, reason: 'Node not found' };
-
-      let updatedNode;
-      if (typeof payload.newValue === 'object' && payload.newValue !== null && !Array.isArray(payload.newValue)) {
-        updatedNode = node.update(payload.newValue);
-      } else {
-        updatedNode = node.update({ value: payload.newValue });
-      }
-      this.ast.set(bindingId, updatedNode);
-      this.values.set(bindingId, payload.newValue);
-      this._invalidateEvalCache(bindingId);
-
-      this.trace.recordMutation(proposal);
-      const affected = this.depGraph.getTransitiveDependents(bindingId);
-      affected.push(bindingId);
-      this._reEvaluateSet(affected);
-      this.notifySubscribers();
-      return { success: true };
-    }
-    return { success: false, reason: 'Unsupported mutation type' };
-  }
-
-  _reEvaluateSet(affectedIds) {
-    const order = this.depGraph.topologicalSort(affectedIds);
-    for (const id of order) {
-      const node = this.ast.get(id);
-      if (!node) continue;
-      if (node.type === 'defvar' || node.type === 'market-data' || node.type === 'preference' ||
-          node.type === 'diamond-index' || node.type === 'rolex-database') {
-        this._invalidateEvalCache(id);
-        this.values.set(id, this.evaluate(id));
-      }
-    }
-  }
-
-  subscribe(fn) { this.subscribers.add(fn); return () => this.subscribers.delete(fn); }
-  notifySubscribers() { this.subscribers.forEach(fn => fn()); }
-  define(name, nodeId) { this.env.set(name, nodeId); }
-  why(exprId, value) { return this.trace.whyExprValue(exprId, value); }
-}

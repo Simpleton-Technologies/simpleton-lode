@@ -59,8 +59,30 @@ import React, {
   useSyncExternalStore,
 } from 'react';
 import { LodeRuntime } from '@/lode/runtime';
+import { LodeBrain } from '@/lode/brain';
 import { buildSiteAST } from '@/lode/site-ast';
 import { MarketDataSync } from '@/lode/market-data-sync';
+
+// Simpleton-lode's domain-specific node types. Registered against the
+// kernel at runtime-construction time. The kernel (@loderuntime/core) is
+// domain-agnostic; these six types live with the app. Opaque value
+// carriers — their value is node.props.value or, failing that, node.props
+// itself (match fork evaluate() behavior byte-for-byte).
+//
+// `coin-database` is intentionally isRoot:false. Per the STEP_2 audit, the
+// fork never bound it via env/define and never included it in the root
+// filter — it was a stubbed-in unfinished feature. Preserving that
+// behavior exactly during migration; finishing the feature is a future
+// ticket, not a migration fix.
+const SIMPLETON_NODE_TYPES = [
+  { type: 'market-data',     isRoot: true  },
+  { type: 'diamond-index',   isRoot: true  },
+  { type: 'rolex-database',  isRoot: true  },
+  { type: 'coin-database',   isRoot: false },
+  { type: 'preference',      isRoot: true  },
+  { type: 'current-route',   isRoot: true  },
+];
+const opaqueValueEvaluator = (node) => node.props.value ?? node.props;
 
 const LodeContext = createContext(null);
 
@@ -71,7 +93,19 @@ export function LodeProvider({ children }) {
   // instance is discarded by React before it ever becomes visible to
   // anyone. The effect-based MarketDataSync startup handles its own
   // double-mount hygiene via its returned stop function.
-  const [runtime] = useState(() => new LodeRuntime());
+  const [runtime] = useState(() => {
+    // Core (@loderuntime/core) is domain-agnostic: it has no .brain and
+    // doesn't know about market-data/diamond-index/etc. Attach the brain
+    // and register the domain types here at construction time. Must happen
+    // BEFORE buildSiteAST runs (which instantiates neurons and market-data
+    // AstNodes) — hence both happen inside this useState initializer.
+    const r = new LodeRuntime();
+    r.brain = new LodeBrain();
+    for (const { type, isRoot } of SIMPLETON_NODE_TYPES) {
+      r.registerNodeType(type, { evaluator: opaqueValueEvaluator, isRoot });
+    }
+    return r;
+  });
   const [siteAST] = useState(() => buildSiteAST(runtime));
   const syncStopRef = useRef(null);
 
