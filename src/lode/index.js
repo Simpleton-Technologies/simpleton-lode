@@ -37,12 +37,16 @@ export {
   DependencyGraph,
   CausalTrace,
   PolicyEngine,
-  LodeBrain,
   typeSafetyRule,
   ownershipRule,
+} from './runtime.js';
+
+// LodeBrain was extracted to its own module on 2026-04-22 (step 5).
+export {
+  LodeBrain,
   NEURON_PARAMS,
   STDP_PARAMS,
-} from './runtime.js';
+} from './brain.js';
 
 export { buildSiteAST } from './site-ast.js';
 export { MarketDataSync } from './market-data-sync.js';
