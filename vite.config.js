@@ -21,8 +21,25 @@ export default defineConfig({
       '@': path.resolve(process.cwd(), './src'),
     },
   },
+  // @loderuntime/core is a CJS package consumed via a file: symlink outside
+  // this project root. Vite's raw ?import shim does not transform top-level
+  // require() calls — only esbuild pre-bundling does. Force it into the
+  // optimizer so require('js-sha256') et al. become proper ESM imports the
+  // browser can execute.
+  optimizeDeps: {
+    include: ['@loderuntime/core'],
+  },
   server: {
     port: 5173,
+    // The linked package lives at ../../../LodeRuntime relative to this
+    // project. Vite's dev server refuses to serve outside the project root
+    // by default — whitelist the LodeRuntime tree so /@fs/... resolves.
+    fs: {
+      allow: [
+        path.resolve(process.cwd(), '.'),
+        path.resolve(process.cwd(), '../../../LodeRuntime'),
+      ],
+    },
     proxy: {
       // Proxy /api/* to the Lode server during dev
       '/api': {
