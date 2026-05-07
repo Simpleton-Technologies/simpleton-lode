@@ -29,6 +29,7 @@ const path    = require('path');
 require('./nervous-system');
 
 const { sendAppraisalEmail } = require('./send-appraisal-handler');
+const unsplashApi             = require('./unsplash-api');
 
 const app = express();
 app.use(cors());
@@ -153,6 +154,13 @@ app.post('/api/send-appraisal', async (req, res) => {
     res.status(status).json({ error: err?.message || 'Send failed.' });
   }
 });
+
+// ───────────────────────────────────────────────────────────────────────
+//  Unsplash proxy — /api/unsplash/search and /api/unsplash/track
+//  Access Key stays server-side; attribution URLs are pre-built with the
+//  required UTM so the browser can't ship a non-compliant link.
+// ───────────────────────────────────────────────────────────────────────
+unsplashApi.attach(app);
 
 const PORT = process.env.PORT || 3033;
 app.listen(PORT, () => console.log(`Lode Server on ${PORT}`));

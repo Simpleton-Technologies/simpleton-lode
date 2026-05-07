@@ -28,6 +28,8 @@ import {
 } from '@/lib/diamond-index';
 import { addRecord, generateRecordId, computeFingerprint } from '@/lib/appraisal-registry';
 import { generateAppraisalPdf, downloadPdfBlob, emailAppraisal } from '@/lib/appraisal-client';
+import { UnsplashImage } from '@/components/UnsplashImage';
+import { useUnsplash } from '@/lib/useUnsplash';
 
 // Current TOS version — bump when the legal copy is revised so records
 // carry a stable reference to which version the owner accepted.
@@ -114,6 +116,11 @@ export default function JewelryAppraisal() {
   const [pdfBusy, setPdfBusy]   = useState(false);
 
   const docRef = useRef(null);
+
+  // Decorative hero — only shown on the Lane selector step. Generic search
+  // (no brand-specific imagery) so accuracy concerns don't apply here.
+  const heroSearch = useUnsplash('diamond loupe gemstone macro', { perPage: 4, orientation: 'landscape' });
+  const heroPhoto  = heroSearch.photos[0];
 
   const handleField = (key) => (e) => {
     setForm(prev => ({ ...prev, [key]: e.target.value }));
@@ -285,6 +292,23 @@ export default function JewelryAppraisal() {
           {/* STEP 1 — Lane selector */}
           {step === 'select' && (
             <section className="appraisal-chrome">
+              {heroPhoto && (
+                <div style={{
+                  width: '100%', aspectRatio: '21 / 7',
+                  marginBottom: 32, overflow: 'hidden',
+                  border: `1px solid ${T.panelBord}`, borderRadius: 3,
+                }}>
+                  <UnsplashImage
+                    photo={heroPhoto}
+                    size="regular"
+                    alt="A loupe over a diamond — the moment claims become evidence"
+                    captionPlacement="overlay"
+                    rounded={0}
+                    style={{ width: '100%', height: '100%' }}
+                    imgStyle={{ width: '100%', height: '100%' }}
+                  />
+                </div>
+              )}
               <HeadlinePair lead="Put it on paper." italic="Start with what the piece is." />
               <p style={{ fontFamily: T.serif, fontSize: 16, fontStyle: 'italic', color: T.inkMuted, maxWidth: 680, lineHeight: 1.75, margin: '0 0 32px 0' }}>
                 Self-serve reference appraisal — generates a downloadable PDF

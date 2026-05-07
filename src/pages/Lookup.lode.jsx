@@ -22,6 +22,8 @@ import { useLode } from '@/lib/lode-context';
 import { TopNav } from '@/components/layout/TopNav';
 import { Footer } from '@/components/layout/Footer';
 import { lookupAppraisal, listDemoIds } from '@/lib/appraisal-registry';
+import { UnsplashImage } from '@/components/UnsplashImage';
+import { useUnsplash } from '@/lib/useUnsplash';
 
 // ───────────────────────────────────────────────────────────────────────
 //  Design tokens — cream-paper document aesthetic.
@@ -71,6 +73,11 @@ function formatDate(iso) {
 
 export default function Lookup() {
   const { siteAST } = useLode();
+
+  // Atmosphere image for the verification page — wax-seal / archival
+  // imagery reinforces the "this is a record on file" feel.
+  const seal = useUnsplash('wax seal old document signature', { perPage: 4, orientation: 'landscape' });
+  const sealPhoto = seal.photos[0];
 
   const [input, setInput]       = useState('');
   const [result, setResult]     = useState(null);   // null = idle
@@ -138,6 +145,24 @@ export default function Lookup() {
             signer, issue date, and the item specs on file. Uncertified
             (self-serve) records are clearly labeled as such.
           </p>
+
+          {sealPhoto && (
+            <div style={{
+              width: '100%', aspectRatio: '21 / 6',
+              marginBottom: 36, overflow: 'hidden',
+              border: `1px solid ${P.hairlineBold}`, borderRadius: 2,
+            }}>
+              <UnsplashImage
+                photo={sealPhoto}
+                size="regular"
+                alt="An archival signature — every Simpleton appraisal is preserved on file"
+                captionPlacement="overlay"
+                rounded={0}
+                style={{ width: '100%', height: '100%' }}
+                imgStyle={{ width: '100%', height: '100%' }}
+              />
+            </div>
+          )}
 
           {/* Lookup form */}
           <form

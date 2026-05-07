@@ -20,6 +20,8 @@
 import React from 'react';
 import { TopNav } from '@/components/layout/TopNav';
 import { Footer } from '@/components/layout/Footer';
+import { UnsplashImage } from '@/components/UnsplashImage';
+import { useUnsplash } from '@/lib/useUnsplash';
 
 const T = {
   bg:       '#0b0b12',
@@ -64,6 +66,12 @@ const PAGE_LABELS = {
 export default function ComingSoon({ pageName }) {
   const label = PAGE_LABELS[pageName] || pageName || 'This page';
 
+  // Atmospheric "anticipation" imagery — first-light, horizons, open
+  // doors. Generic enough that even Unsplash's least-curated result
+  // works for the mood we want.
+  const horizon      = useUnsplash('horizon dawn first light', { perPage: 4, orientation: 'landscape' });
+  const horizonPhoto = horizon.photos[0];
+
   return (
     <div style={{ background: T.bg, color: T.ink, fontFamily: T.body, minHeight: '100vh' }}>
       <TopNav />
@@ -96,6 +104,24 @@ export default function ComingSoon({ pageName }) {
         </h1>
 
         <div style={{ width: 60, height: 1, background: T.gold, margin: '0 auto 36px', opacity: 0.5 }} />
+
+        {horizonPhoto && (
+          <div style={{
+            width: '100%', aspectRatio: '21 / 9',
+            margin: '0 auto 36px', overflow: 'hidden',
+            border: `1px solid ${T.hairline}`, borderRadius: 3,
+          }}>
+            <UnsplashImage
+              photo={horizonPhoto}
+              size="regular"
+              alt="A horizon at first light — what's coming next"
+              captionPlacement="overlay"
+              rounded={0}
+              style={{ width: '100%', height: '100%' }}
+              imgStyle={{ width: '100%', height: '100%' }}
+            />
+          </div>
+        )}
 
         <p style={{
           fontFamily: T.serif, fontSize: 17, fontStyle: 'italic',
