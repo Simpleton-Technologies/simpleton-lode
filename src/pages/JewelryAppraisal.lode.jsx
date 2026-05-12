@@ -589,7 +589,7 @@ export default function JewelryAppraisal() {
 
       <style>{`
         @media print {
-          @page { size: Letter; margin: 12mm; }
+          @page { size: Letter; margin: 14mm; }
           html, body { background: #fff !important; }
           .appraisal-chrome { display: none !important; }
           .appraisal-document {
@@ -598,8 +598,41 @@ export default function JewelryAppraisal() {
             margin: 0 !important;
             padding: 0 !important;
             background: #fff !important;
+            max-width: 100% !important;
           }
           .appraisal-document-inner { padding: 0 !important; }
+        }
+
+        /* ── PDF / Print page-break rules ─────────────────────────────
+           html2pdf reads these via its css pagebreak mode.
+           Every section stays intact — never sliced mid-content.
+           Table rows, photo grids, and the footer also stay whole.   */
+        .appraisal-document section,
+        .appraisal-document header,
+        .appraisal-document footer,
+        .appraisal-document tr,
+        .appraisal-document .pdf-no-break {
+          page-break-inside: avoid;
+          break-inside:      avoid;
+        }
+
+        /* The letterhead header must never be orphaned at the bottom */
+        .appraisal-document header {
+          page-break-after: avoid;
+          break-after:      avoid;
+        }
+
+        /* Photo grid: keep all detail photos together if they fit */
+        .appraisal-document .appraisal-photo-grid {
+          page-break-inside: avoid;
+          break-inside:      avoid;
+        }
+
+        /* Explicit forced break — add className="pdf-page-break-before"
+           to any element you want to always start on a fresh page      */
+        .pdf-page-break-before {
+          page-break-before: always;
+          break-before:      always;
         }
       `}</style>
     </div>
@@ -786,7 +819,7 @@ function ReferenceDocument({ record, verifyUrl, generatedAt }) {
             <div style={{ fontFamily: P.mono, fontSize: 10, letterSpacing: '0.22em', color: P.inkMuted, textTransform: 'uppercase', marginBottom: 10 }}>
               Additional photos
             </div>
-            <div style={{
+            <div className="appraisal-photo-grid" style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
               gap: 8,
@@ -1009,3 +1042,4 @@ function Row({ label, value, cite, emphasize }) {
     </tr>
   );
 }
+
