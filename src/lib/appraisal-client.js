@@ -48,13 +48,34 @@ export async function generateAppraisalPdf(docEl, { filename }) {
   if (!docEl) throw new Error('generateAppraisalPdf: DOM node required');
 
   const html2pdf = await loadHtml2Pdf();
+
+  // Letter page: 215.9mm wide. With 12mm margins each side → 191.9mm usable.
+  // The document surface is capped at 820px in the DOM. We pin the PDF width
+  // to exactly that content width so html2canvas renders at a 1:1 pixel ratio
+  // (scale: 1) and jsPDF tiles it without any rescaling distortion.
+  // scale: 1.5 gives crisp text without the scale-2 overblown bitmap that
+  // confuses jsPDF's page-slice math and produces half-empty last pages.
   const opts = {
-    margin:     [12, 12, 12, 12],          // mm
-    filename:   filename || 'simpleton-appraisal.pdf',
-    image:      { type: 'jpeg', quality: 0.92 },
-    html2canvas:{ scale: 2, useCORS: true, backgroundColor: '#FBFAF4' },
-    jsPDF:      { unit: 'mm', format: 'letter', orientation: 'portrait' },
-    pagebreak:  { mode: ['css', 'legacy'] },
+    margin:      [14, 14, 14, 14],         // mm — slightly more breathing room
+    filename:    filename || 'simpleton-appraisal.pdf',
+    image:       { type: 'jpeg', quality: 0.95 },
+    html2canvas: {
+      scale:           1.5,               // was 2 — caused slice math errors
+      useCORS:         true,
+      backgroundColor: '#FBFAF4',
+      windowWidth:     900,               // force consistent layout width
+      logging:         false,
+    },
+    jsPDF:       { unit: 'mm', format: 'letter', orientation: 'portrait' },
+    pagebreak:   {
+      mode:   ['css', 'legacy'],
+      before: ['.pdf-page-break-before'],  // explicit forced breaks
+      avoid:  [                            // never slice inside these
+        'section',
+        'tr',
+        '.pdf-no-break',
+      ],
+    },
   };
 
   const blob = await html2pdf().from(docEl).set(opts).outputPdf('blob');
@@ -121,3 +142,4 @@ export async function emailAppraisal(payload) {
   }
   return body;
 }
+
